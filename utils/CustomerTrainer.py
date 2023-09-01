@@ -11,7 +11,7 @@
 from typing import Dict, OrderedDict
 
 from transformers import Trainer
-from pckgs.util.tools import FGM
+from modules.AdversarialTraining import FGM
 import sys
 # import logging
 # logger = logging.getLogger(__name__)

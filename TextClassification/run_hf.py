@@ -1,39 +1,34 @@
 #!/usr/bin/env python
 # coding: utf-8
-import time
-from pckgs.util.data_process import Dataset, TestDataset, get_one_hot_label
-from pckgs.util.tools import cm2df
-from loguru import logger
-import copy
-import numpy as np
-import transformers
-from transformers import EarlyStoppingCallback
-from sklearn.metrics import classification_report, confusion_matrix
-import pandas as pd
+
+import os
+import sys
+
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
+from utils.DataProcess import load_dataset, Dataset
+from utils.CustomerTrainer import BaseTrainer
+from configparser import ConfigParser
+from utils import Metrics
+from collections import Counter
+from sklearn.utils import shuffle
+from datetime import datetime
+from sklearn.metrics import precision_recall_fscore_support
+import torch.nn
+from models.TextClassification import BertFamily
+from transformers import TrainingArguments, set_seed
+import torch
 from transformers import (
     AutoConfig,
     AutoTokenizer,
 )
-import torch
-from transformers import Trainer
-from transformers import TrainingArguments, set_seed
-from pckgs.BertFamily.ptuningv2 import BertPrefixForSequenceClassification
-from pckgs.BertFamily import BertTextCls
-import torch.nn
-from sklearn.metrics import precision_recall_fscore_support
-from datetime import datetime
-from sklearn.utils import shuffle
-from pckgs.util import tools
-from collections import Counter
-from dataloader import load_dataset
-from pckgs.util import eval_metrics
-from configparser import ConfigParser
-from pckgs.util.CustomTrainer import BaseTrainer
-import os
-import sys
-sys.path.append("..")
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+import pandas as pd
+from transformers import EarlyStoppingCallback
+import numpy as np
+from loguru import logger
+import time
 
+torch.manual_seed(3407)
 
 # from transformers import logging
 logger.remove()
@@ -49,10 +44,10 @@ logger.add(sys.stdout,
            )
 
 
-torch.manual_seed(3407)
+
 
 configParser = ConfigParser()
-configParser.read("train_params.config")
+configParser.read("/home/henry/code/NLP/TextClassification/params.ini")
 
 ############# basic conf ################
 
@@ -114,7 +109,7 @@ else:
 
 date = time.strftime("%Y-%m-%d_%H:%M:%S")
 pooling_method = configParser.get("train_conf", "pooling")
-output_dir = f"{plm_name}_{model_type}_{loss_type}_{pooling_method}_{strategy}_{date}" if model_type != "ptuning" else f"{plm_name}_{model_type}_{loss_type}_{pooling_method}{is_freeze_bert}_{strategy}_{date}"
+output_dir = f"{plm_name.replace('/', '-')}_{model_type}_{loss_type}_{pooling_method}_{strategy}_{date}" if model_type != "ptuning" else f"{plm_name.replace('/', '-')}_{model_type}_{loss_type}_{pooling_method}{is_freeze_bert}_{strategy}_{date}"
 output_dir = os.path.join(task_name, output_dir)
 
 
@@ -135,14 +130,14 @@ pretrain_model = eval(configParser.get("pretrained_models", "pretrain_model"))
 print(type(pretrain_model))
 
 model_dict = {
-    'ptuning': BertPrefixForSequenceClassification,
-    'bert': BertTextCls.BertVanillaTextClsForTransformers,
-    'BertWithCateFeat': BertTextCls.BertClsWithCateFeat,
-    'rdrop': BertTextCls.RDropBert,
-    'deberta': BertTextCls.DebertaVanillaTextCls
+    'ptuning': BertFamily.BertPrefixForSequenceClassification,
+    'bert': BertFamily.BertVanillaTextClsForTransformers,
+    'BertWithCateFeat': BertFamily.BertClsWithCateFeat,
+    'rdrop': BertFamily.RDropBert,
+    'deberta': BertFamily.DebertaVanillaTextCls
 }
 
-plm_path = pretrain_model[plm_name]
+
 
 train_set = load_dataset(filepath=trainset_path,
                          label_col=label_col, label_list=label_list)
@@ -151,28 +146,18 @@ valid_set = load_dataset(filepath=devset_path,
 test_set = load_dataset(filepath=testset_path,
                         label_col=label_col, label_list=label_list)
 
-if 'sentiment' in task_name:
-    train_set = train_set[train_set[label_col].isin(['Positive', 'Negative'])]
-    valid_set = valid_set[valid_set[label_col].isin(['Positive', 'Negative'])]
-    test_set = test_set[test_set[label_col].isin(['Positive', 'Negative'])]
-# if 'level3' in task_name:
-#     train_set.dropna(subset=[label_col], inplace=True)
-#     valid_set.dropna(subset=[label_col], inplace=True)
-#     test_set.dropna(subset=[label_col], inplace=True)
 
 shuffle(train_set)
 
-##################### Get trainset label weight ########################
-# count_dict = train_set[label_col].value_counts().to_dict()
-# pos_weight = list()
-# label_freq_sum = train_set[label_col].count()
-# each_label_inverse_freq = [label_freq_sum / count_dict[_label] for _label in label_list]
-# pos_weight = [_each_label_inverse_freq / sum(each_label_inverse_freq) for _each_label_inverse_freq in each_label_inverse_freq]
 
+cache_dir = os.path.join('/home/henry/model_zoo', plm_name.split('/')[-1])
 
 tokenizer = AutoTokenizer.from_pretrained(
-    pretrained_model_name_or_path=plm_path
+    pretrained_model_name_or_path=plm_name,
+    cache_dir=cache_dir
 )
+
+
 logger.info(f"Vocab size: {len(tokenizer)}")
 if add_vocab:
     import pickle
@@ -181,12 +166,6 @@ if add_vocab:
     tokenizer.add_tokens(add_vocab_list)
     logger.info(f"Vocab size: {len(tokenizer)}")
 
-# 加一些额外特征
-# def comb_feat(row):
-#     return f'[unused1]文本长度:{row["text_len"]}[unused1]评分:{row["score"]}[unused1]{row["sim_text"]}'
-# train_set['sim_text'] = train_set.apply(lambda x: comb_feat(x), axis=1)
-# valid_set['sim_text'] = valid_set.apply(lambda x: comb_feat(x), axis=1)
-# tokenizer.add_special_tokens({'additional_special_tokens': ["[unused1]"]})
 
 train_encodings = tokenizer(train_set[text_col].tolist(
 ), max_length=max_length, truncation=True, padding='max_length', return_token_type_ids=True)
@@ -196,21 +175,10 @@ test_encodings = tokenizer(test_set[text_col].tolist(
 ), max_length=max_length, truncation=True, padding='max_length', return_token_type_ids=True)
 
 
-if is_cate_feat:
-    def comb_feat(row, text_col):
-        return f'[unused1]文本长度:{row["text_len"]}[unused1]评分:{row["score"]}[unused1]{row[text_col]}'
-        # return f'[unused1]{row["stage"]}[unused1]{row["sub_stage"]}[unused1]{row["sim_text"]}'
-    train_set['model_input'] = train_set.apply(
-        lambda x: comb_feat(x, text_col), axis=1)
-    valid_set['model_input'] = valid_set.apply(
-        lambda x: comb_feat(x, text_col), axis=1)
-    test_set['model_input'] = test_set.apply(
-        lambda x: comb_feat(x, text_col), axis=1)
-    tokenizer.add_special_tokens({'additional_special_tokens': ["[unused1]"]})
-else:
-    train_set['model_input'] = train_set[text_col]
-    valid_set['model_input'] = valid_set[text_col]
-    test_set['model_input'] = test_set[text_col]
+
+train_set['model_input'] = train_set[text_col]
+valid_set['model_input'] = valid_set[text_col]
+test_set['model_input'] = test_set[text_col]
 
 logger.info(f"{'='*20} Input Sample {'='*20}")
 for i in range(5):
@@ -243,7 +211,6 @@ logger.info(f"{label_cnt}")
 logger.info(
     "=============================Trainset label info=============================")
 
-# train_set['one_hot_label'].n
 
 if WeightedBCELoss:
 
@@ -317,7 +284,8 @@ logger.warning(
 logger.info(f"Training/evaluation parameters {training_args}")
 
 config = AutoConfig.from_pretrained(
-    pretrained_model_name_or_path=plm_path,
+    pretrained_model_name_or_path=plm_name,
+    cache_dir=cache_dir
     # problem_type='multi_label_classification',
     # cache_dir=os.path.join('pretrained_model', model_name.replace('/', '-'), 'config')
 )
@@ -341,8 +309,9 @@ config.pooling = pooling_method
 
 # train from scratch
 model = model_dict[model_type.lower()].from_pretrained(
-    plm_path,
-    config=config
+    plm_name,
+    config=config,
+    cache_dir=cache_dir
 )
 
 # if is_cate_feat:
@@ -367,7 +336,7 @@ trainer = BaseTrainer(
     args=training_args,  # training arguments, defined above
     train_dataset=train_dataset,  # training dataset
     eval_dataset=eval_dataset,  # evaluation dataset
-    compute_metrics=eval_metrics.compute_multiclass_metrics if problem_type == 'single_label_classification' else eval_metrics.compute_multilabel_metrics,
+    compute_metrics=Metrics.compute_multiclass_metrics if problem_type == 'single_label_classification' else Metrics.compute_multilabel_metrics,
     tokenizer=tokenizer,
     test_key='f1',
     callbacks=[EarlyStoppingCallback(
@@ -384,7 +353,7 @@ if trainer.predict:
         eval_dataset, metric_key_prefix="predict")
     # activation = torch.nn.Softmax() if 'single' in problem_type else torch.nn.Sigmoid()
     # preds = activation(torch.Tensor(predictions)).cpu().detach().numpy()
-    eval_metrics.compute_metrics_export_report(pred_logits=predictions, y_true=true_labels, input_df=valid_set,
+    Metrics.compute_metrics_export_report(pred_logits=predictions, y_true=true_labels, input_df=valid_set,
                                                label_list=label_list, output_dir=output_dir,
                                                prefix='dev', problem_type=problem_type, output_pred_col_name=pred_col_name)
     # predict testset
@@ -392,6 +361,6 @@ if trainer.predict:
     predictions, true_labels, _ = trainer.predict(
         test_dataset, metric_key_prefix="predict")
     # preds = activation(torch.Tensor(predictions)).cpu().detach().numpy()
-    eval_metrics.compute_metrics_export_report(pred_logits=predictions, y_true=true_labels, input_df=test_set,
+    Metrics.compute_metrics_export_report(pred_logits=predictions, y_true=true_labels, input_df=test_set,
                                                label_list=label_list, output_dir=output_dir,
                                                prefix='test', problem_type=problem_type, output_pred_col_name=pred_col_name, test_with_label=test_with_label)

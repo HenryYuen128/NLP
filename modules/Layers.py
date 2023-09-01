@@ -73,6 +73,7 @@ class PrefixEncoder(torch.nn.Module):
             self.embedding = torch.nn.Embedding(config.pre_seq_len, config.num_hidden_layers * 2 * config.hidden_size)
 
     def forward(self, prefix: torch.Tensor):
+        
         if self.prefix_projection == 'mlp':
             prefix_tokens = self.embedding(prefix)
             past_key_values = self.trans(prefix_tokens)
