@@ -211,7 +211,6 @@ logger.info(f"{label_cnt}")
 logger.info(
     "=============================Trainset label info=============================")
 
-# train_set['one_hot_label'].n
 
 if WeightedBCELoss:
 
@@ -330,7 +329,7 @@ if add_vocab:
 
 # model = BertPrefixForSequenceClassification.from_pretrained('/expand/Henry/code/AIA_NLP/iSay-NPS/multilabel_cls/roberta_base_ptuning_FocalLoss_weighted_avg_r_drop_2023-05-10_06:47:24/checkpoint-1008',
 #                                                             config=config)
-# TODO: fdfdf
+
 trainer = BaseTrainer(
     model=model,  # the instantiated 🤗 Transformers model to be trained
     # model_init=model_init,
