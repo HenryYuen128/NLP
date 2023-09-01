@@ -10,14 +10,15 @@ import torch
 import sys
 
 from transformers.configuration_utils import PretrainedConfig
-sys.path.append("..")
 from torch import nn
 from transformers import BertPreTrainedModel, BertModel, DebertaV2PreTrainedModel, DebertaV2Model
 from transformers.modeling_outputs import SequenceClassifierOutput
 import torch.nn.functional as F
-from pckgs.util.tools import PrefixEncoder
-from pckgs.util import tools
+from modules.Layers import PrefixEncoder
+from modules import Losses
+# from pckgs.util import Losses
 from torch.utils.checkpoint import checkpoint
+import torch.nn as nn
 
 class DebertaVanillaTextCls(DebertaV2PreTrainedModel):
     def __init__(self, config: PretrainedConfig):
@@ -38,8 +39,8 @@ class DebertaVanillaTextCls(DebertaV2PreTrainedModel):
         
         # self.pos_weight = torch.Tensor(config.pos_weight)
         # self.multilable_categorical_loss = config.multilable_categorical_loss
-        # self.dice_loss = tools.BinaryDSCLoss()
-        self.weighted_avg = tools.WeightedLayerPooling(config.num_hidden_layers, layer_start=9)
+        # self.dice_loss = Losses.BinaryDSCLoss()
+        self.weighted_avg = Losses.WeightedLayerPooling(config.num_hidden_layers, layer_start=9)
         self.FocalLoss = self.config.FocalLoss
 
     def forward(self, input_ids, token_type_ids, attention_mask, labels=None, **kwargs):
@@ -140,7 +141,7 @@ class DebertaVanillaTextCls(DebertaV2PreTrainedModel):
                                     labels.view(-1, self.config.num_labels).float())
             else:
                 if self.FocalLoss:
-                    loss_fct = tools.FocalLossV1()
+                    loss_fct = Losses.FocalLossV1()
                     # loss_fct = nn.BCEWithLogitsLoss()
                     loss = loss_fct(logits.view(-1, self.config.num_labels),
                                     labels.view(-1, self.config.num_labels).float())
@@ -154,11 +155,11 @@ class DebertaVanillaTextCls(DebertaV2PreTrainedModel):
                 #                 labels.view(-1, self.config.num_labels).float())
 
 
-                # loss_fct = tools.NegativeSamplingBCE(self.config.not_negative_sampling_cate)
+                # loss_fct = Losses.NegativeSamplingBCE(self.config.not_negative_sampling_cate)
                 # loss = loss_fct(logits.view(-1, self.config.num_labels),
                 #                 labels.view(-1, self.config.num_labels).float())
                 # if self.multilable_categorical_loss:
-                #     loss = tools.multilabel_categorical_crossentropy(logits.view(-1, self.config.num_labels),
+                #     loss = Losses.multilabel_categorical_crossentropy(logits.view(-1, self.config.num_labels),
                 #                     labels.view(-1, self.config.num_labels).float())
                 # else:
                     # loss_fct = nn.BCEWithLogitsLoss(pos_weight=self.pos_weight.cuda())
@@ -244,8 +245,8 @@ class BertVanillaTextClsForTransformers(BertPreTrainedModel):
         
         # self.pos_weight = torch.Tensor(config.pos_weight)
         # self.multilable_categorical_loss = config.multilable_categorical_loss
-        # self.dice_loss = tools.BinaryDSCLoss()
-        self.weighted_avg = tools.WeightedLayerPooling(config.num_hidden_layers, layer_start=9)
+        # self.dice_loss = Losses.BinaryDSCLoss()
+        self.weighted_avg = Losses.WeightedLayerPooling(config.num_hidden_layers, layer_start=9)
         self.FocalLoss = self.config.FocalLoss
 
         # self.dense_layer = nn.Linear(self.config.hidden_size, self.config.hidden_size)
@@ -363,7 +364,7 @@ class BertVanillaTextClsForTransformers(BertPreTrainedModel):
                                     labels.view(-1, self.config.num_labels).float())
             else:
                 if self.FocalLoss:
-                    loss_fct = tools.FocalLossV1()
+                    loss_fct = Losses.FocalLossV1()
                     # loss_fct = nn.BCEWithLogitsLoss()
                     loss = loss_fct(logits.view(-1, self.config.num_labels),
                                     labels.view(-1, self.config.num_labels).float())
@@ -377,11 +378,11 @@ class BertVanillaTextClsForTransformers(BertPreTrainedModel):
                 #                 labels.view(-1, self.config.num_labels).float())
 
 
-                # loss_fct = tools.NegativeSamplingBCE(self.config.not_negative_sampling_cate)
+                # loss_fct = Losses.NegativeSamplingBCE(self.config.not_negative_sampling_cate)
                 # loss = loss_fct(logits.view(-1, self.config.num_labels),
                 #                 labels.view(-1, self.config.num_labels).float())
                 # if self.multilable_categorical_loss:
-                #     loss = tools.multilabel_categorical_crossentropy(logits.view(-1, self.config.num_labels),
+                #     loss = Losses.multilabel_categorical_crossentropy(logits.view(-1, self.config.num_labels),
                 #                     labels.view(-1, self.config.num_labels).float())
                 # else:
                     # loss_fct = nn.BCEWithLogitsLoss(pos_weight=self.pos_weight.cuda())
@@ -431,8 +432,8 @@ class BertClsWithCateFeat(BertPreTrainedModel):
         
         # self.pos_weight = torch.Tensor(config.pos_weight)
         # self.multilable_categorical_loss = config.multilable_categorical_loss
-        # self.dice_loss = tools.BinaryDSCLoss()
-        self.weighted_avg = tools.WeightedLayerPooling(config.num_hidden_layers, layer_start=9)
+        # self.dice_loss = Losses.BinaryDSCLoss()
+        self.weighted_avg = Losses.WeightedLayerPooling(config.num_hidden_layers, layer_start=9)
         self.FocalLoss = self.config.FocalLoss
         print(self.cateEmbedding.weight)
 
@@ -589,7 +590,7 @@ class BertClsWithCateFeat(BertPreTrainedModel):
                                     labels.view(-1, self.config.num_labels).float())
             else:
                 if self.FocalLoss:
-                    loss_fct = tools.FocalLossV1()
+                    loss_fct = Losses.FocalLossV1()
                     # loss_fct = nn.BCEWithLogitsLoss()
                     loss = loss_fct(logits.view(-1, self.config.num_labels),
                                     labels.view(-1, self.config.num_labels).float())
@@ -603,11 +604,11 @@ class BertClsWithCateFeat(BertPreTrainedModel):
                 #                 labels.view(-1, self.config.num_labels).float())
 
 
-                # loss_fct = tools.NegativeSamplingBCE(self.config.not_negative_sampling_cate)
+                # loss_fct = Losses.NegativeSamplingBCE(self.config.not_negative_sampling_cate)
                 # loss = loss_fct(logits.view(-1, self.config.num_labels),
                 #                 labels.view(-1, self.config.num_labels).float())
                 # if self.multilable_categorical_loss:
-                #     loss = tools.multilabel_categorical_crossentropy(logits.view(-1, self.config.num_labels),
+                #     loss = Losses.multilabel_categorical_crossentropy(logits.view(-1, self.config.num_labels),
                 #                     labels.view(-1, self.config.num_labels).float())
                 # else:
                     # loss_fct = nn.BCEWithLogitsLoss(pos_weight=self.pos_weight.cuda())
@@ -647,11 +648,11 @@ class RDropBert(BertPreTrainedModel):
         else:
             self.classifier = nn.Linear(self.config.hidden_size, self.config.num_labels)
         
-        self.loss_fcn = tools.RDrop(problem_type=self.config.problem_type)
+        self.loss_fcn = Losses.RDrop(problem_type=self.config.problem_type)
         # self.pos_weight = torch.Tensor(config.pos_weight)
         # self.multilable_categorical_loss = config.multilable_categorical_loss
-        # self.dice_loss = tools.BinaryDSCLoss()
-        self.weighted_avg = tools.WeightedLayerPooling(config.num_hidden_layers, layer_start=9)
+        # self.dice_loss = Losses.BinaryDSCLoss()
+        self.weighted_avg = Losses.WeightedLayerPooling(config.num_hidden_layers, layer_start=9)
         self.FocalLoss = self.config.FocalLoss
 
     def forward(self, input_ids, token_type_ids, attention_mask, labels=None, **kwargs):
@@ -747,7 +748,7 @@ class RDropBert(BertPreTrainedModel):
         #                                 labels.view(-1, self.config.num_labels).float())
         #         else:
         #             if self.FocalLoss:
-        #                 loss_fct = tools.FocalLossV1()
+        #                 loss_fct = Losses.FocalLossV1()
         #                 # loss_fct = nn.BCEWithLogitsLoss()
         #                 loss = loss_fct(logits.view(-1, self.config.num_labels),
         #                                 labels.view(-1, self.config.num_labels).float())
@@ -980,7 +981,7 @@ class BertPrefixForSequenceClassification(nn.Module):
 # from util.util import multilabel_categorical_crossentropy
 
 
-class BertPrefixForSequenceClassification(BertPreTrainedModel):
+class PTuningV2(BertPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.num_labels = config.num_labels
@@ -1009,7 +1010,7 @@ class BertPrefixForSequenceClassification(BertPreTrainedModel):
         self.weights = self.config.bce_pos_weight
         self.weighted_bce = self.config.WeightedBCELoss
         self.FocalLoss = self.config.FocalLoss
-        # self.weighted_avg = tools.WeightedLayerPooling(config.num_hidden_layers, layer_start=9)
+        # self.weighted_avg = Losses.WeightedLayerPooling(config.num_hidden_layers, layer_start=9)
 
         self.prefix_tokens = torch.arange(self.pre_seq_len).long()  # [0,1, ...., pre_seq_len] dtype=long
 
@@ -1214,7 +1215,7 @@ class BertPrefixForSequenceClassification(BertPreTrainedModel):
                     self.config.problem_type = "multi_label_classification"
 
             if self.config.problem_type == "regression":
-                loss_fct = MSELoss()
+                loss_fct = nn.MSELoss()
                 if self.num_labels == 1:
                     loss = loss_fct(logits.squeeze(), labels.squeeze())
                 else:
@@ -1230,22 +1231,22 @@ class BertPrefixForSequenceClassification(BertPreTrainedModel):
                     loss = (alpha * (1-pt)**gamma * ce_loss).mean()
                 else:
 
-                    loss_fct = CrossEntropyLoss()
-                    # loss_fct = tools.DiceLoss(weight=self.pos_weight)
+                    loss_fct = nn.CrossEntropyLoss()
+                    # loss_fct = Losses.DiceLoss(weight=self.pos_weight)
                     loss = loss_fct(logits.view(-1, self.config.num_labels),
                                     labels.view(-1, self.config.num_labels))
             elif self.config.problem_type == "multi_label_classification":
                 if self.weighted_bce:
-                    loss_fct = BCEWithLogitsLoss(reduction='none')
+                    loss_fct = nn.BCEWithLogitsLoss(reduction='none')
                     loss = loss_fct(logits, labels)
                     loss = (loss * torch.Tensor(self.weights).cuda()).mean()
 
                 elif self.FocalLoss:
-                    loss_fct = tools.FocalLossV1()
+                    loss_fct = Losses.FocalLossV1()
                     loss = loss_fct(logits, labels)
                 else:
                     
-                    loss_fct = BCEWithLogitsLoss()
+                    loss_fct = nn.BCEWithLogitsLoss()
                     loss = loss_fct(logits.view(-1, self.config.num_labels),
                                 labels.view(-1, self.config.num_labels).float())
                 
@@ -1308,7 +1309,7 @@ class BertPrefixForSequenceClassification(BertPreTrainedModel):
                     # loss_fct = MSELoss()
                     if self.num_labels == 1:
                         #  We are doing regression
-                        loss_fct = MSELoss()
+                        loss_fct = nn.MSELoss()
                         if loss:
                             loss += alpha * loss_fct(logits.view(-1), labels.view(-1))
                         else:
@@ -1318,22 +1319,22 @@ class BertPrefixForSequenceClassification(BertPreTrainedModel):
                 elif self.config.problem_type == "single_label_classification":
                     # loss_fct = CrossEntropyLoss()
                     # loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-                    loss_fct = CrossEntropyLoss()
+                    loss_fct = nn.CrossEntropyLoss()
                     if loss:
                         loss += 0.5 * loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
                     else:
                         loss = 0.5 * loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
                 elif self.config.problem_type == "multi_label_classification":
                     if self.weighted_bce:
-                        loss_fct = BCEWithLogitsLoss(reduction='none')
+                        loss_fct = nn.BCEWithLogitsLoss(reduction='none')
                         raise NotImplementedError("BCEBCEWithLogitsLoss Not Implemented.")
                         # loss = loss_fct(logits, labels)
                         # loss = (loss * torch.Tensor(self.weights).cuda()).mean()
                     elif self.FocalLoss:
-                        loss_fct = tools.FocalLossV1()
+                        loss_fct = Losses.FocalLossV1()
                         # loss = loss_fct(logits, labels)
                     else:
-                        loss_fct = BCEWithLogitsLoss()
+                        loss_fct = nn.BCEWithLogitsLoss()
                         # loss = loss_fct(logits.view(-1, self.config.num_labels),
                         #             labels.view(-1, self.config.num_labels).float())
 
@@ -1347,7 +1348,7 @@ class BertPrefixForSequenceClassification(BertPreTrainedModel):
 
         if loss is not None:
             if self.num_labels == 1:
-                loss_fct = MSELoss()
+                loss_fct = nn.MSELoss()
                 loss += 1.0 * loss_fct(logits_list[0].view(-1), logits_list[-1].view(-1))
             else:
 

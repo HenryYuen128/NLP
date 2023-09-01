@@ -14,8 +14,18 @@ from torchmetrics import Precision, Recall, F1Score
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support, classification_report
 import numpy as np
 
-from pckgs.util.tools import cm2df
-
+# from pckgs.util.tools import cm2df
+def cm2df(cm, labels):
+    df = pd.DataFrame()
+    # rows
+    for i, row_label in enumerate(labels):
+        rowdata={}
+        # columns
+        for j, col_label in enumerate(labels):
+            rowdata[col_label]=cm[i,j]
+        tmp_df = pd.DataFrame.from_dict({row_label:rowdata}, orient='index')
+        df = pd.concat([df, tmp_df])
+    return df[labels]
 
 def cls_metrics_by_torchmetrics(pred):
     num_classes = pred.label_ids.shape[-1]
