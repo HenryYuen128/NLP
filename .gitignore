@@ -1,2 +1,6 @@
 *.csv
 *.pkl
+*.ts
+*.pt
+hotel_sentiment/
+*__pycache__*

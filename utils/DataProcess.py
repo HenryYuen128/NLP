@@ -77,7 +77,7 @@ class AdvancedTextClassificationDataset(torch.utils.data.Dataset):
 
 
 # Dataset
-class Dataset(torch.utils.data.Dataset):
+class TextClassficationDataset(torch.utils.data.Dataset):
     def __init__(self, labels, texts_encodings, texts, substage_feat=None, is_test=False):
         
         self.substage_feat = substage_feat
@@ -99,7 +99,23 @@ class Dataset(torch.utils.data.Dataset):
         item['cate_feat'] = torch.tensor(self.substage_feat[idx], dtype=torch.int32) if self.substage_feat else None
         item['texts'] = self.texts[idx]
         return item
+class SimpleDataset(torch.utils.data.Dataset):
+    def __init__(self, texts_encodings, texts):
+        # self.labels = labels
+        self.texts_encodings = texts_encodings
+        self.texts = texts
 
+    def __len__(self):
+        return len(self.texts)
+
+    # def __getitem__(self, item):
+    #     return self.texts_encodings[item], self.labels[item]
+
+    def __getitem__(self, idx):
+        item = {key: torch.tensor(val[idx]) for key, val in self.texts_encodings.items()}
+        # item['labels'] = torch.tensor(self.labels[idx], dtype=float)
+        item['texts'] = self.texts[idx]
+        return item
 
 class TestDataset(torch.utils.data.Dataset):
     def __init__(self, labels, texts_encodings, texts):

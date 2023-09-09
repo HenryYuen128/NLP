@@ -6,7 +6,7 @@ import sys
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
-from utils.DataProcess import load_dataset, Dataset
+from utils.DataProcess import load_dataset, TextClassficationDataset
 from utils.CustomerTrainer import BaseTrainer
 from configparser import ConfigParser
 from utils import Metrics
@@ -137,8 +137,6 @@ model_dict = {
     'deberta': BertFamily.DebertaVanillaTextCls
 }
 
-
-
 train_set = load_dataset(filepath=trainset_path,
                          label_col=label_col, label_list=label_list)
 valid_set = load_dataset(filepath=devset_path,
@@ -158,13 +156,13 @@ tokenizer = AutoTokenizer.from_pretrained(
 )
 
 
-logger.info(f"Vocab size: {len(tokenizer)}")
-if add_vocab:
-    import pickle
-    with open(vocab_path, 'rb') as f:
-        add_vocab_list = pickle.load(f)
-    tokenizer.add_tokens(add_vocab_list)
-    logger.info(f"Vocab size: {len(tokenizer)}")
+# logger.info(f"Vocab size: {len(tokenizer)}")
+# if add_vocab:
+#     import pickle
+#     with open(vocab_path, 'rb') as f:
+#         add_vocab_list = pickle.load(f)
+#     tokenizer.add_tokens(add_vocab_list)
+#     logger.info(f"Vocab size: {len(tokenizer)}")
 
 
 train_encodings = tokenizer(train_set[text_col].tolist(
@@ -174,15 +172,9 @@ valid_encodings = tokenizer(valid_set[text_col].tolist(
 test_encodings = tokenizer(test_set[text_col].tolist(
 ), max_length=max_length, truncation=True, padding='max_length', return_token_type_ids=True)
 
-
-
-train_set['model_input'] = train_set[text_col]
-valid_set['model_input'] = valid_set[text_col]
-test_set['model_input'] = test_set[text_col]
-
 logger.info(f"{'='*20} Input Sample {'='*20}")
 for i in range(5):
-    logger.info(train_set['model_input'].tolist()[i])
+    logger.info(train_set[text_col].tolist()[i])
     logger.info(train_encodings['input_ids'][i])
     logger.info(train_set[label_col].tolist()[i])
     logger.info(train_set['one_hot_label'].tolist()[i])
@@ -191,16 +183,16 @@ for i in range(5):
 logger.info(f"{'='*20} Input Sample {'='*20}")
 
 
-train_dataset = Dataset(train_set['one_hot_label'].tolist(),
+train_dataset = TextClassficationDataset(train_set['one_hot_label'].tolist(),
                         train_encodings,
-                        train_set['model_input'].tolist())
-eval_dataset = Dataset(valid_set['one_hot_label'].tolist(),
+                        train_set[text_col].tolist())
+eval_dataset = TextClassficationDataset(valid_set['one_hot_label'].tolist(),
                        valid_encodings,
-                       valid_set['model_input'].tolist())
+                       valid_set[text_col].tolist())
 
-test_dataset = Dataset(test_set['one_hot_label'].tolist(),
+test_dataset = TextClassficationDataset(test_set['one_hot_label'].tolist(),
                        test_encodings,
-                       test_set['model_input'].tolist())
+                       test_set[text_col].tolist())
 
 
 label_mat = np.array(train_set['one_hot_label'].tolist())
@@ -255,17 +247,6 @@ training_args = TrainingArguments(
     greater_is_better=True,
     gradient_checkpointing=gradient_checkpointing
 )
-
-
-# 将日志输出到控制台，默认 sys.stderr
-# logger.addHandler(logging.StreamHandler(sys.stdout))
-# 输出到文件的格式,注释下面的add',则关闭日志写入
-# logger.add(output_dir, level='DEBUG',
-#                 format='{time:YYYYMMDD HH:mm:ss} - '  # 时间
-#                         "{process.name} | "  # 进程名
-#                         "{thread.name} | "  # 进程名
-#                         '{module}.{function}:{line} - {level} -{message}',  # 模块名.方法名:行号
-#                 rotation="10 MB")
 
 
 logger.info('-' * 20)
